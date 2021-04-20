@@ -7,40 +7,81 @@ d3.json("samples.json").then((data) => {
 var idSelect = d3.select('#selDataset');
 var barChart = d3.select('#bar');
 var bubbleChart = d3.select('#bubble')
-var dropdown = d3.select("select");
 var sampleMetadata = d3.select("#sample-metadata");
-var selection = dropdown.property("value");
+var dropdown = d3.select("select");
 
 
 //Populate initial dropdown
-function optionChanged(dropdownSelection) {
-    dropdown.on("onchange", updatePage(dropdownSelection))
+function init() {
+    d3.json("samples.json").then((data) => {
+        data.names.forEach((name => {
+            var option = idSelect.append("option");
+            option.text(name)
+        }));
+
+        //plot initial chart
+        var initialChart = idSelect.property("value")
+        plotCharts(initialChart)
+    });
+}
+
+//dropdown menu selecton
+d3.selectAll("#selDataset").on("onchange", updateChart);
+
+function updateChart() {
+    var idSelect = d3.select('#selDataset');
+    var dataset = idSelect.property("value")
+}
+
+
+//reset data
+function reset() {
+    sampleMetadata.html("");
+    barChart.html("");
+    bubbleChart.html("");
 };
 
-//Create a horizontal bar chart with a dropdown menu to display the top 10 OTUs found in that individual
-//Use sample_values as the values for the bar chart.
-//Use otu_ids as the labels for the bar chart.
-//Use otu_labels as the hovertext for the chart.
+//Plot charts
 
-function plotCharts() {
-    data.then(function(data) {
-        var sampleData = data.samples
-        var extendData = Object.entries(sampleData)
-        var values = unpack(extendData,1)
-        var filteredSample = data.samples.filter(sample => sample.id == id)[0];
-        var sampleValue = filteredSample.sample_values
-        var otuID = filteredSample.otu_id
-        var otuLabel = filteredSample.otu_labels
+function plotCharts(id) {
+    d3.json("samples.json").then((data) => {
+        var metadata = data.metadata.filter(m => m.id == id)[0];
+        Object.entries(metadata).forEach(([k, v]) => {
+            var metaList = sampleMetadata.append("ul");
+            var listItem = metaList.append("li");
+        })
+
+        //Grab data for plots
+        var singleSample = data.samples.filter(s => s.id == id)[0];
+        var otuID = [];
+        var otuLabels = [];
+        var sampleValues = [];
+
+        //Iterate
+        Object.entries(singleSample).forEach(([k, v]) => {
+            switch(k) {
+                case "OTU_ID":
+                    otuID.push(v);
+                    break;
+                case "SAMPLE_VALUES":
+                    sampleValues.push(v);
+                    break;
+                case "OTU_LABELS":
+                    otuLabels.push(v);
+                    break;
+            }
+        });
+    
 
         //retrieve top 10
-        var topTenValues = sampleValue.slice(0,10)
-        var topTenIDs = otuID.slice(0,10)
-        topTenIDs.forEach((key, value) => {
-            var topTenLabels = otuLabel.slice(0,10)
+        var topTenValues = sampleValues[0].slice(0,10).reverse();
+        var topTenIDs = otuID[0].slice(0,10).reverse();
+        var topTenLabels = otuLabels[0].slice(0,10).reverse();
 
         barChart.html("")
         bubbleChart.html("")
 
+        //bar chart
         var trace1 = [{
             x: topTenValues, 
             y: topTenIDs,
@@ -49,6 +90,11 @@ function plotCharts() {
             orientation: "h"
         }];
 
+        var traceBar = [trace1];
+
+        Plotly.newPlot("bar", traceBar);
+
+        //bubble chart
         var trace2 = [{
             x: otuID,
             y: sampleValue,
@@ -58,22 +104,12 @@ function plotCharts() {
                 size: sampleValue,
                 color: otuID
             }
-        }]
-        Plotly.newPlot("bar", trace1)
-        Plotly.newPlot("bubble", trace2)
+        }];
+
+        var traceBubble = [trace2];
+
+        Plotly.newPlot("bubble", traceBubble)
         })
-    })
 };
 
-//Initialize page
-function init() {
-    data.then(function(data) {
-        Object.entries(data.names).forEach(function([key, value]) {
-        var options = dropdown.append("option")
-        .attr('value', value)
-        options.text(value)
-     }) 
-    })
-}
-
-init()
+init();
